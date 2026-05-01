@@ -5,6 +5,7 @@ const app = express();
 
 app.get("/demo", async (req, res) => {
   const file = req.query.file;
+  const server = req.query.server || "1";
 
   if (!file) {
     return res.status(400).send("Arquivo não informado");
@@ -14,10 +15,10 @@ app.get("/demo", async (req, res) => {
 
   try {
     await sftp.connect({
-      host: process.env.SFTP_HOST,
-      port: process.env.SFTP_PORT,
-      username: process.env.SFTP_USER,
-      password: process.env.SFTP_PASS
+      host: process.env[`SFTP_HOST_${server}`],
+      port: process.env[`SFTP_PORT_${server}`],
+      username: process.env[`SFTP_USER_${server}`],
+      password: process.env[`SFTP_PASS_${server}`]
     });
 
     const path = `/home/container/game/csgo/MatchZy/${file}`;
