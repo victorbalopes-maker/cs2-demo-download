@@ -27,7 +27,7 @@ app.get("/demo", async (req, res) => {
 
     console.log("Conectado!");
 
-    const basePath = "/home/container/game/csgo/MatchZy/";
+    const basePath = "/game/csgo/MatchZy/";
 
     const files = await sftp.list(basePath);
 
