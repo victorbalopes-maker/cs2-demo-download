@@ -3,7 +3,7 @@ import Client from "ssh2-sftp-client";
 
 const app = express();
 
-// 🔥 ROTA DE TESTE (OBRIGATÓRIA)
+// ROTA TESTE
 app.get("/", (req, res) => {
   res.send("Servidor funcionando 🚀");
 });
@@ -39,7 +39,7 @@ app.get("/demo", async (req, res) => {
   }
 });
 
-// 🔥 PORTA CORRETA PARA RAILWAY
+// 🔥 ESSA LINHA É A MAIS IMPORTANTE
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, "0.0.0.0", () => {
