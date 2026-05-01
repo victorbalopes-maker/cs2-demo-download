@@ -13,13 +13,11 @@ app.get("/demo", async (req, res) => {
   const file = req.query.file;
   const server = req.query.server || "1";
 
-  if (!file) {
-    return res.status(400).send("Arquivo não informado");
-  }
-
   const sftp = new Client();
 
   try {
+    console.log("Conectando servidor:", server);
+
     await sftp.connect({
       host: process.env[`SFTP_HOST_${server}`],
       port: Number(process.env[`SFTP_PORT_${server}`]),
@@ -27,8 +25,23 @@ app.get("/demo", async (req, res) => {
       password: process.env[`SFTP_PASS_${server}`]
     });
 
-    // ⚠️ ajuste se necessário
+    console.log("Conectado!");
+
     const basePath = "/home/container/game/csgo/MatchZy/";
+
+    const files = await sftp.list(basePath);
+
+    console.log("Arquivos encontrados:");
+    console.log(files.map(f => f.name));
+
+    const found = files.find(f => f.name === file);
+
+    if (!found) {
+      console.log("Arquivo NÃO encontrado:", file);
+      return res.status(404).send("Arquivo não encontrado");
+    }
+
+    console.log("Arquivo encontrado:", file);
 
     const stream = await sftp.get(basePath + file);
 
