@@ -21,7 +21,7 @@ app.get("/demo", async (req, res) => {
       password: process.env[`SFTP_PASS_${server}`]
     });
 
-    const path = `/home/container/game/csgo/MatchZy/${file}`;
+    const path = `/game/csgo/MatchZy/${file}`;
 
     const stream = await sftp.get(path);
 
