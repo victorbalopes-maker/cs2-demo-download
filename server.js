@@ -1,5 +1,8 @@
 import express from "express";
 import Client from "ssh2-sftp-client";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
 const app = express();
 
@@ -13,6 +16,7 @@ app.get("/demo", async (req, res) => {
   const file = req.query.file;
   const server = req.query.server || "1";
   const sftp = new Client();
+  const tmpPath = path.join(os.tmpdir(), `demo_${Date.now()}_${file}`);
 
   try {
     console.log("Conectando servidor:", server);
@@ -30,31 +34,54 @@ app.get("/demo", async (req, res) => {
 
     if (!found) {
       console.log("Arquivo NÃO encontrado:", file);
+      await sftp.end();
       return res.status(404).send("Arquivo não encontrado");
     }
 
     console.log("Arquivo encontrado:", file, "| Tamanho:", found.size);
+    console.log("Iniciando download SFTP para tmp...");
 
-    // Informa o tamanho total para o browser mostrar progresso correto
+    // Baixa para arquivo temporário no Railway
+    await sftp.fastGet(basePath + file, tmpPath, {
+      chunkSize: 32768,
+      concurrency: 1,
+      step: (transferred, chunk, total) => {
+        const pct = Math.round((transferred / total) * 100);
+        console.log(`Progresso SFTP: ${pct}% (${transferred}/${total})`);
+      }
+    });
+
+    console.log("Download SFTP completo! Servindo ao browser...");
+    await sftp.end();
+
+    // Serve o arquivo ao browser
     res.setHeader("Content-Length", found.size);
     res.setHeader("Content-Disposition", `attachment; filename="${file}"`);
     res.setHeader("Content-Type", "application/octet-stream");
 
-    // Stream direto SFTP → Response (sem carregar na memória)
-    await sftp.get(basePath + file, res);
+    const readStream = fs.createReadStream(tmpPath);
+    readStream.pipe(res);
+
+    readStream.on("end", () => {
+      console.log("Envio ao browser concluído. Removendo tmp...");
+      fs.unlink(tmpPath, () => console.log("Tmp removido:", tmpPath));
+    });
+
+    readStream.on("error", (err) => {
+      console.error("Erro ao ler tmp:", err);
+      fs.unlink(tmpPath, () => {});
+      if (!res.headersSent) res.status(500).send("Erro ao servir arquivo");
+    });
 
   } catch (err) {
     console.error("ERRO REAL:", err);
-    if (!res.headersSent) {
-      res.status(500).send("Erro ao baixar arquivo");
-    }
-  } finally {
-    sftp.end();
+    await sftp.end().catch(() => {});
+    fs.unlink(tmpPath, () => {});
+    if (!res.headersSent) res.status(500).send("Erro ao baixar arquivo");
   }
 });
 
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, "0.0.0.0", () => {
   console.log("Servidor rodando na porta", PORT);
 });
