@@ -12,28 +12,20 @@ app.get("/", (req, res) => {
 app.get("/demo", async (req, res) => {
   const file = req.query.file;
   const server = req.query.server || "1";
-
   const sftp = new Client();
 
   try {
     console.log("Conectando servidor:", server);
-
     await sftp.connect({
       host: process.env[`SFTP_HOST_${server}`],
       port: Number(process.env[`SFTP_PORT_${server}`]),
       username: process.env[`SFTP_USER_${server}`],
       password: process.env[`SFTP_PASS_${server}`]
     });
-
     console.log("Conectado!");
 
     const basePath = "/game/csgo/MatchZy/";
-
     const files = await sftp.list(basePath);
-
-    console.log("Arquivos encontrados:");
-    console.log(files.map(f => f.name));
-
     const found = files.find(f => f.name === file);
 
     if (!found) {
@@ -41,18 +33,21 @@ app.get("/demo", async (req, res) => {
       return res.status(404).send("Arquivo não encontrado");
     }
 
-    console.log("Arquivo encontrado:", file);
+    console.log("Arquivo encontrado:", file, "| Tamanho:", found.size);
 
-    const stream = await sftp.get(basePath + file);
-
+    // Informa o tamanho total para o browser mostrar progresso correto
+    res.setHeader("Content-Length", found.size);
     res.setHeader("Content-Disposition", `attachment; filename="${file}"`);
     res.setHeader("Content-Type", "application/octet-stream");
 
-    stream.pipe(res);
+    // Stream direto SFTP → Response (sem carregar na memória)
+    await sftp.get(basePath + file, res);
 
   } catch (err) {
     console.error("ERRO REAL:", err);
-    res.status(500).send("Erro ao baixar arquivo");
+    if (!res.headersSent) {
+      res.status(500).send("Erro ao baixar arquivo");
+    }
   } finally {
     sftp.end();
   }
